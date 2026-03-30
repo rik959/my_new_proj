@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl fonts-dejavu-core \
+RUN apt-get update && apt-get install -y --no-install-recommends curl fonts-dejavu-core imagemagick \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m eberrik
@@ -13,6 +13,8 @@ ENV PATH="/home/eberrik/.local/bin:${PATH}"
 
 COPY --chown=eberrik:eberrik app/ ./app/
 COPY --chown=eberrik:eberrik photos/ ./photos/
+COPY --chown=eberrik:eberrik assets/ ./assets/
+COPY --chown=eberrik:eberrik anniversary_magazine.pdf ./anniversary_magazine.pdf
 
 EXPOSE 8501
 

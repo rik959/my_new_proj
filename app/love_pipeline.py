@@ -515,6 +515,44 @@ if st.session_state.pipeline_run:
     components.html(proposal_html, height=350)
 
     # =============================================
+    # 🎬 CARTOON VIDEO SECTION
+    # =============================================
+    video_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "assets", "our_cartoon_story.mp4"
+    )
+    if not os.path.isfile(video_path):
+        video_path = "/home/eberrik/app/assets/our_cartoon_story.mp4"
+
+    if os.path.isfile(video_path):
+        st.markdown("---")
+        st.markdown("### 🎬 Video Premiere: Our Animated Journey")
+        st.code("$ ffplay assets/our_cartoon_story.mp4", language="bash")
+        with open(video_path, "rb") as vf:
+            st.video(vf.read())
+        st.caption("Memory fragments reassembled into cinematic format.")
+
+    # =============================================
+    # 📖 MAGAZINE DOWNLOAD
+    # =============================================
+    magazine_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "anniversary_magazine.pdf"
+    )
+    if not os.path.isfile(magazine_path):
+        magazine_path = "/home/eberrik/app/anniversary_magazine.pdf"
+
+    if os.path.isfile(magazine_path):
+        st.markdown("---")
+        st.markdown("### 📖 System Documentation: The Magazine")
+        st.code("$ cat /var/artifacts/anniversary_magazine.pdf", language="bash")
+        with open(magazine_path, "rb") as pdf:
+            st.download_button(
+                label="📥 DOWNLOAD ANNIVERSARY MAGAZINE",
+                data=pdf.read(),
+                file_name="Eberrik_Anniversary_Edition.pdf",
+                mime="application/pdf",
+            )
+
+    # =============================================
     # 📂 BONUS TABS: Changelog + Certificate + Registry
     # =============================================
     st.markdown("---")
@@ -656,3 +694,28 @@ if st.session_state.pipeline_run:
                 st.warning("Cannot connect to registry.eberrik.local:5000 — is it running?")
         except ImportError:
             st.warning("`requests` not installed. Registry browser unavailable.")
+
+    # =============================================
+    # 🎉 SURPRISE FINALE
+    # =============================================
+    st.markdown("---")
+    st.markdown("### 🔓 Security Clearance: Level 1-Year")
+    st.code("$ sudo unlock --level=forever", language="bash")
+    st.write("System detected complete viewing of all artifacts. Finalize the release?")
+
+    if st.button("💝 YES — FINALIZE RELEASE"):
+        st.balloons()
+        st.snow()
+        st.success("STABILITY RATING: 100% | UPTIME: ETERNAL")
+        st.markdown("""
+        <div style="text-align:center; padding:30px; border:2px solid #ff69b4; border-radius:15px; background:#0e1117;">
+            <h1 style="color:#ff69b4 !important;">💖 Happy 1st Anniversary! 💖</h1>
+            <p style="color:#00ff41 !important; font-size:1.2rem;">
+                Deployment to the future initialized...<br>
+                No end-of-life date. No rollback. Forever.
+            </p>
+            <p style="color:#888 !important; font-size:0.9rem; margin-top:15px;">
+                — with all my love, eberrik@love-server
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
