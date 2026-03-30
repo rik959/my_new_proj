@@ -422,86 +422,97 @@ if st.session_state.pipeline_run:
     </div>
     """, unsafe_allow_html=True)
 
-    if not st.session_state.said_yes:
-        # The trolling NO button + fixed YES button using HTML/JS
-        st.markdown("""
-        <div id="proposal-buttons" style="text-align:center; padding:20px; position:relative; min-height:150px;">
-            <button id="yesBtn" onclick="
-                document.getElementById('proposal-buttons').innerHTML = '<h2 style=\\'color:#ff69b4 !important;\\'>💖 SHE SAID YES! 💖</h2><p style=\\'color:#00ff41 !important;\\'>merge --no-ff love forever</p>';
-                document.getElementById('yes-celebration').style.display = 'block';
-            " style="
-                background:#ff69b4; color:white; border:none; font-size:1.5rem;
-                padding:15px 60px; border-radius:10px; cursor:pointer;
-                font-family:'Fira Code',monospace; font-weight:bold;
-                margin:10px; display:inline-block;
-            ">✅ YES</button>
+    import streamlit.components.v1 as components
 
-            <button id="noBtn" onmouseover="moveNoBtn()" ontouchstart="convertToYes()" style="
-                background:#333; color:#888; border:1px solid #555; font-size:1.2rem;
-                padding:12px 40px; border-radius:10px; cursor:pointer;
-                font-family:'Fira Code',monospace; margin:10px;
-                display:inline-block; position:relative;
-                transition: all 0.3s;
-            ">❌ NO</button>
+    proposal_html = """
+    <html>
+    <head>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Fira Code', monospace; }
+        body { background: #0a0a0a; }
+        #proposal-buttons {
+            text-align: center; padding: 20px;
+            position: relative; min-height: 200px;
+        }
+        #yesBtn {
+            background: #ff69b4; color: white; border: none;
+            font-size: 1.5rem; padding: 15px 60px; border-radius: 10px;
+            cursor: pointer; font-family: 'Fira Code', monospace;
+            font-weight: bold; margin: 10px; display: inline-block;
+        }
+        #yesBtn:hover { background: #ff1493; transform: scale(1.1); }
+        #noBtn {
+            background: #333; color: #888; border: 1px solid #555;
+            font-size: 1.2rem; padding: 12px 40px; border-radius: 10px;
+            cursor: pointer; font-family: 'Fira Code', monospace;
+            margin: 10px; display: inline-block; position: relative;
+            transition: all 0.3s;
+        }
+        #yes-celebration {
+            display: none; text-align: center; padding: 30px;
+        }
+        #yes-celebration h1 { color: #ff69b4; font-size: 2.2rem; }
+        #yes-celebration p { color: #00ff41; font-size: 1.1rem; margin: 10px 0; }
+        #yes-celebration .emojis { font-size: 3rem; }
+    </style>
+    </head>
+    <body>
+        <div id="proposal-buttons">
+            <button id="yesBtn" onclick="sayYes()">✅ YES</button>
+            <button id="noBtn">❌ NO</button>
         </div>
-
-        <div id="yes-celebration" style="display:none; text-align:center; padding:30px;">
-            <h1 style="color:#ff69b4 !important; font-size:2.5rem;">💖💍 SHE SAID YES! 💍💖</h1>
-            <p style="color:#00ff41 !important; font-size:1.2rem;">
-                $ git merge love --no-ff --message="forever together"<br>
-                Merge successful. No conflicts found. 💚
-            </p>
-            <p style="font-size:3rem;">🎉🎊💐💖🥂</p>
+        <div id="yes-celebration">
+            <h1>💖💍 SHE SAID YES! 💍💖</h1>
+            <p>$ git merge love --no-ff --message="forever together"</p>
+            <p>Merge successful. No conflicts found. 💚</p>
+            <p class="emojis">🎉🎊💐💖🥂</p>
         </div>
-
         <script>
+        function sayYes() {
+            document.getElementById('proposal-buttons').style.display = 'none';
+            document.getElementById('yes-celebration').style.display = 'block';
+        }
+
+        var noBtn = document.getElementById('noBtn');
+        var container = document.getElementById('proposal-buttons');
+
         function moveNoBtn() {
-            const btn = document.getElementById('noBtn');
-            const container = document.getElementById('proposal-buttons');
-            const maxX = container.offsetWidth - btn.offsetWidth - 20;
-            const maxY = 100;
-            const randX = Math.floor(Math.random() * maxX);
-            const randY = Math.floor(Math.random() * maxY);
-            btn.style.position = 'absolute';
-            btn.style.left = randX + 'px';
-            btn.style.top = randY + 'px';
+            var maxX = container.offsetWidth - noBtn.offsetWidth - 20;
+            var maxY = 120;
+            var randX = Math.floor(Math.random() * Math.max(maxX, 100));
+            var randY = Math.floor(Math.random() * maxY);
+            noBtn.style.position = 'absolute';
+            noBtn.style.left = randX + 'px';
+            noBtn.style.top = randY + 'px';
         }
 
-        // On mobile touch: NO becomes YES
-        function convertToYes() {
-            const btn = document.getElementById('noBtn');
-            btn.innerText = '✅ YES';
-            btn.style.background = '#ff69b4';
-            btn.style.color = 'white';
-            btn.style.border = 'none';
-            btn.style.fontSize = '1.5rem';
-            btn.style.position = 'relative';
-            btn.onmouseover = null;
-            btn.ontouchstart = null;
-            btn.onclick = function() {
-                document.getElementById('proposal-buttons').innerHTML = '<h2 style=\\'color:#ff69b4 !important;\\'>💖 SHE SAID YES! 💖</h2><p style=\\'color:#00ff41 !important;\\'>merge --no-ff love forever</p>';
-                document.getElementById('yes-celebration').style.display = 'block';
-            };
-        }
+        // Desktop: mouse hover makes it run away
+        noBtn.addEventListener('mouseover', moveNoBtn);
 
-        // Also move on click attempt (desktop fallback)
-        document.getElementById('noBtn').addEventListener('click', function(e) {
-            moveNoBtn();
+        // Desktop: clicking also makes it run
+        noBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            moveNoBtn();
+        });
+
+        // Mobile: touch converts NO to YES
+        noBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            noBtn.innerText = '✅ YES';
+            noBtn.style.background = '#ff69b4';
+            noBtn.style.color = 'white';
+            noBtn.style.border = 'none';
+            noBtn.style.fontSize = '1.5rem';
+            noBtn.style.position = 'relative';
+            noBtn.removeEventListener('mouseover', moveNoBtn);
+            noBtn.onclick = sayYes;
         });
         </script>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <div style="text-align:center; padding:30px;">
-            <h1 style="color:#ff69b4 !important; font-size:2.5rem;">💖💍 SHE SAID YES! 💍💖</h1>
-            <p style="color:#00ff41 !important; font-size:1.2rem;">
-                $ git merge love --no-ff --message="forever together"<br>
-                Merge successful. No conflicts found. 💚
-            </p>
-            <p style="font-size:3rem;">🎉🎊💐💖🥂</p>
-        </div>
-        """, unsafe_allow_html=True)
+    </body>
+    </html>
+    """
+    components.html(proposal_html, height=350)
 
     # =============================================
     # 📂 BONUS TABS: Changelog + Certificate + Registry

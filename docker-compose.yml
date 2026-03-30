@@ -21,6 +21,24 @@ services:
     extra_hosts:
       - "registry.eberrik.local:host-gateway"
 
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: love-tunnel
+    restart: unless-stopped
+    command:
+      - "http"
+      - "love-pipeline:8501"
+      - "--request-header-add"
+      - "ngrok-skip-browser-warning:true"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_TOKEN}
+    ports:
+      - "4040:4040"
+    networks:
+      - love-net
+    depends_on:
+      - love-pipeline
+
 networks:
   love-net:
     driver: bridge
