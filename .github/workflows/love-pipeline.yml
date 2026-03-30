@@ -209,7 +209,7 @@ jobs:
 
       - name: "📱 Generate QR Code for mobile access"
         run: |
-          pip install qrcode[pil] -q
+          pip install qrcode[pil] -q --break-system-packages
           python3 -c "
           import qrcode, socket
           s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
