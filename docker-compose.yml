@@ -1,0 +1,26 @@
+services:
+  love-pipeline:
+    image: registry.eberrik.local:5000/love-pipeline:latest
+    container_name: love-pipeline
+    ports:
+      - "8501:8501"
+    volumes:
+      - ~/love-pipeline-photos:/home/eberrik/app/photos
+    restart: unless-stopped
+    environment:
+      - REGISTRY_URL=http://registry.eberrik.local:5000/v2
+      - REGISTRY_USER=eberrik
+      - REGISTRY_PASS=${REGISTRY_PASS}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - love-net
+    extra_hosts:
+      - "registry.eberrik.local:host-gateway"
+
+networks:
+  love-net:
+    driver: bridge

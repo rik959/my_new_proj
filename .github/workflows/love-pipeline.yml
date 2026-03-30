@@ -1,0 +1,229 @@
+name: "💚 Love Pipeline — Build & Deploy"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: registry.eberrik.local:5000
+  IMAGE: love-pipeline
+  TAG: ${{ github.sha }}
+
+jobs:
+
+  # ============================================
+  # Detect what changed
+  # ============================================
+  detect-changes:
+    name: "🔎 Detecting changes..."
+    runs-on: self-hosted
+    outputs:
+      app_changed: ${{ steps.changes.outputs.app }}
+      photos_only: ${{ steps.changes.outputs.photos_only }}
+    steps:
+      - name: "🔌 Checkout..."
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: "🔍 Check what changed"
+        id: changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "all")
+          echo "Changed files: $CHANGED"
+
+          # Check if app code / Dockerfile changed
+          if echo "$CHANGED" | grep -qE '^(app/|Dockerfile|docker-compose\.yml)'; then
+            echo "app=true" >> $GITHUB_OUTPUT
+            echo "photos_only=false" >> $GITHUB_OUTPUT
+          elif echo "$CHANGED" | grep -qE '^photos/'; then
+            echo "app=false" >> $GITHUB_OUTPUT
+            echo "photos_only=true" >> $GITHUB_OUTPUT
+          else
+            echo "app=true" >> $GITHUB_OUTPUT
+            echo "photos_only=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ============================================
+  # FAST PATH: Photos only — just sync, no rebuild
+  # ============================================
+  sync-photos:
+    name: "📸 Fast Sync — New Photos Detected"
+    runs-on: self-hosted
+    needs: detect-changes
+    if: needs.detect-changes.outputs.photos_only == 'true' && github.ref == 'refs/heads/main'
+    steps:
+      - name: "🔌 Fetching latest photos..."
+        uses: actions/checkout@v4
+
+      - name: "📂 Syncing photos to live volume..."
+        run: |
+          mkdir -p ~/love-pipeline-photos
+          cp -r photos/* ~/love-pipeline-photos/
+          echo ""
+          echo "============================================"
+          echo "  📸 PHOTOS SYNCED — No rebuild needed!"
+          echo "============================================"
+          echo "  New photos are live instantly."
+          echo "  Just refresh the browser."
+          echo "============================================"
+
+  # ============================================
+  # FULL PATH: App code changed — full pipeline
+  # ============================================
+
+  # Stage 1: System Integrity Check
+  heartbeat-check:
+    name: "💓 Stage 1 — System Integrity Check"
+    runs-on: self-hosted
+    needs: detect-changes
+    if: needs.detect-changes.outputs.app_changed == 'true'
+    steps:
+      - name: "🔌 Establishing connection..."
+        uses: actions/checkout@v4
+
+      - name: "🐍 Loading Python runtime..."
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "📦 Installing dependencies..."
+        run: pip install -r app/requirements.txt
+
+      - name: "🔍 Running heart_rate_monitor check..."
+        run: |
+          echo "✅ heart_rate_monitor... OK"
+          echo "✅ love_module... LOADED"
+          echo "✅ memory_bank... 18 commits found"
+          python -c "import streamlit; print(f'Streamlit {streamlit.__version__} ready')"
+          echo "✅ All systems nominal. Heartbeat strong."
+
+  # Stage 2: Build & Test Container
+  build-memories:
+    name: "📦 Stage 2 — Building memories.tar.gz"
+    runs-on: self-hosted
+    needs: heartbeat-check
+    steps:
+      - name: "🔌 Fetching commit history..."
+        uses: actions/checkout@v4
+
+      - name: "🛠️ Building Docker image..."
+        run: |
+          docker build \
+            -t $REGISTRY/$IMAGE:$TAG \
+            -t $REGISTRY/$IMAGE:latest \
+            .
+
+      - name: "🧪 Testing container health..."
+        run: |
+          docker run -d --name test-love -p 8502:8501 $REGISTRY/$IMAGE:$TAG
+          echo "Waiting for love-pipeline to boot..."
+          sleep 12
+          curl --fail http://localhost:8502/_stcore/health
+          echo "✅ Container health check PASSED"
+          docker stop test-love && docker rm test-love
+
+  # Stage 3: Push to Private Registry
+  push-to-registry:
+    name: "🚀 Stage 3 — Pushing to Heart Registry"
+    runs-on: self-hosted
+    needs: build-memories
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: "🔐 Authenticating with registry.eberrik.local..."
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login $REGISTRY -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: "📤 Pushing image to Heart Registry..."
+        run: |
+          docker push $REGISTRY/$IMAGE:$TAG
+          docker push $REGISTRY/$IMAGE:latest
+
+      - name: "✅ Push complete"
+        run: |
+          echo "============================================"
+          echo "🟢 Image pushed to registry.eberrik.local"
+          echo "   $REGISTRY/$IMAGE:$TAG"
+          echo "   $REGISTRY/$IMAGE:latest"
+          echo "============================================"
+
+  # Stage 4: Deploy to Love Server
+  deploy-love-server:
+    name: "💍 Stage 4 — Deploy to Love Server"
+    runs-on: self-hosted
+    needs: push-to-registry
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: "🔌 Fetching source..."
+        uses: actions/checkout@v4
+
+      - name: "🔐 Authenticating with registry..."
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login $REGISTRY -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+
+      - name: "⬇️ Pulling latest image..."
+        run: docker pull $REGISTRY/$IMAGE:latest
+
+      - name: "🛑 Stopping old deployment..."
+        run: |
+          docker stop love-pipeline 2>/dev/null || true
+          docker rm love-pipeline 2>/dev/null || true
+
+      - name: "📂 Syncing photos to volume..."
+        run: |
+          mkdir -p ~/love-pipeline-photos
+          cp -r photos/* ~/love-pipeline-photos/ 2>/dev/null || true
+
+      - name: "🚀 Deploying new version..."
+        run: |
+          docker run -d \
+            --name love-pipeline \
+            --restart unless-stopped \
+            -p 8501:8501 \
+            --memory=512m \
+            --cpus=0.5 \
+            --add-host=registry.eberrik.local:host-gateway \
+            -e REGISTRY_URL=http://registry.eberrik.local:5000/v2 \
+            -e REGISTRY_USER=${{ secrets.DOCKER_USERNAME }} \
+            -e REGISTRY_PASS=${{ secrets.DOCKER_PASSWORD }} \
+            -v ~/love-pipeline-photos:/home/eberrik/app/photos \
+            $REGISTRY/$IMAGE:latest
+
+      - name: "✅ Verifying deployment..."
+        run: |
+          echo "Waiting for love-pipeline to boot..."
+          sleep 12
+          curl --fail http://localhost:8501/_stcore/health
+          echo ""
+          echo "============================================"
+          echo "  💚 LOVE SERVER DEPLOYED SUCCESSFULLY"
+          echo "============================================"
+          echo "  Container: love-pipeline"
+          echo "  Image:     $REGISTRY/$IMAGE:latest"
+          echo "  Access:    http://localhost:8501"
+          echo "  Status:    RUNNING"
+          echo "  Mode:      --no-rollback --forever"
+          echo "============================================"
+
+      - name: "📱 Generate QR Code for mobile access"
+        run: |
+          pip install qrcode[pil] -q
+          python3 -c "
+          import qrcode, socket
+          s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          s.connect(('8.8.8.8', 80))
+          ip = s.getsockname()[0]
+          s.close()
+          url = f'http://{ip}:8501'
+          img = qrcode.make(url)
+          img.save('anniversary_qr.png')
+          print(f'📱 QR Code generated: {url}')
+          "
+
+      - name: "📎 Upload QR Code as artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: anniversary-qr-code
+          path: anniversary_qr.png
