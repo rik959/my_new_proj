@@ -224,6 +224,7 @@ jobs:
 
       - name: "📎 Upload QR Code as artifact"
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: anniversary-qr-code
           path: anniversary_qr.png
